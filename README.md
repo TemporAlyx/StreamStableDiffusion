@@ -1,22 +1,30 @@
-# SimpleStableDiffusionNotebook
-A simple ipython notebook using stable diffusion for text to image synthesis
+# StreamStableDiffusionNotebook
+A simple ipython notebook to enable users in a twitch chat to generate images on stream.
 
-A Massive thank you and shoutout to the open source communities, with collaboration between Stability.ai, LAION, EleutherAI, and HuggingFace to create the StableDiffusion model that makes this possible.
-Code largely based entirely off of the examples provided here https://huggingface.co/CompVis/stable-diffusion-v1-4
+# Functionality
+Uses stable diffusions safety filter to prevent displaying nsfw content on stream, this notebook uses a cracked open version of the safety filter so that you can adjust the threshold. This is not entirely foolproof, but I've yet to see anything explicitly bad on higher settings of the threshold, although it can misclassify benign images.
+Generating an image calls an interface with several editable commands in the notebook, defining whether images get saved, whether to generate a grid of images, and what to do in the event of an nsfw image being detected. 
 
-As I continue to play around with this software I'll add try and add features and conveniance for this notebook to be a simple way of using StableDiffusion.
+Generated images are saved to an overwritten stream.jpg file that obs can watch for, as well as a text file to output who requested it, and a text file for the prompt
 
-This notebook only requires a few python libraries, including ipython/jupyter notebooks and pytorch installed. 
+Can connect to a twitch channel chat to search for commands:
+!generate {prompt} # generates an image based off of the given prompt
+!clear             # wipes the current image
+!approve           # only the account used to connect the bot can use this command, depending on nsfw settings will 'approve' an image or grid of images if they were misclassified
+!terminate         # only the account used to connect the bot can use this command, simple command stops the bot from running
+!regenerate        # reuses the previous prompt and generates a new image/grid of images
 
-# Core Concepts (some still to develop)
-- Simple interface to quickly queue and test prompts and ideas
-- Any image displayed is saved in some form, along with the prompt for easy copy/paste with credits and optional settings. Ideally anyone who is given the image can recreate the same settings for their own variations.
-- I include basic code that optionally disables the integrated safety filter, while I fully support that this is included by default, I also appreciate the ease to remove it.
-- I do not make any attempts to disable the integrated invisible encoding that embeds information in the image to denote the image as ai generated. This is good. Please do not intentially avoid this functionality.
-- attempts are made to determine maximum and minimum ram settings for various functions and batch sizes.
+# install process: (still to be testedwith a clean install)
+Unfortunately getting this up and running will take a bit of techincal knowhow
+Requires a python (3.9 or above) install, along with a cuda enabled pytorch, as well as cuda itself (unfortunately will only work with cuda gpu).
+Currently is using a python notebook and so requires jupyter, but could probably be converted into a simple .py file.
+
+# To Do:
+create a system that handles downloading required libraries and programs, so as to make installing a much less difficult process
+exhaustively test safety filter settings and present data to give people an idea of how safe (and not safe) it is
+create gui? would be nice to have sliders and buttons to handle tuning settings and starting/restarting the bot, would also make it more accessible
 
 
-# Planned Features:
-- refactor so that generating calls a function, and various parameters are modifiable via that
-- fix naming so as to never overwrite any files, and output
-- build a queuing system
+A Massive thank you and shoutout to the open source communities that made StableDiffusion possible.
+Code is based on examples provided here https://huggingface.co/CompVis/stable-diffusion-v1-4
+as well as example code from https://github.com/LearnDataSci/articles/tree/master/How%20to%20Stream%20Text%20Data%20from%20Twitch%20with%20Sockets%20in%20Python
