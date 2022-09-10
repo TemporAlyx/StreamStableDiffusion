@@ -12,13 +12,12 @@ import inspect
 import warnings
 from typing import List, Optional, Union
 
-import torch
-
 from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer
+from transformers import CLIPConfig, CLIPVisionModel, PreTrainedModel
 
 from diffusers.models import AutoencoderKL, UNet2DConditionModel
 from diffusers.pipeline_utils import DiffusionPipeline
-from diffusers import StableDiffusionPipeline
+# from diffusers import StableDiffusionPipeline
 from diffusers.schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
 
 import warnings
@@ -26,12 +25,10 @@ from collections import OrderedDict
 from dataclasses import fields
 from typing import Any, Tuple
 
-
 import PIL
-from PIL import Image
 
-from transformers import CLIPConfig, CLIPVisionModel, PreTrainedModel
-def strip_prompt(prompt):
+
+def strip_prompt(prompt): # could be further extended to include removing or modifying special characters
     return prompt.replace('\n', '').strip('.').strip().replace('/', '-')
 
 def save_image(img, path, overwrite=False):
@@ -59,15 +56,13 @@ def generate_images(prompt, pipe, steps=50, guidance=8.0, grid_size=(2, 2), H=51
 
     stripped_prompt = strip_prompt(prompt)
 
-    if batch_columns:
-        prompt = [stripped_prompt] * grid_size[1]
-    else:
-        prompt = [stripped_prompt]
+    if batch_columns: prompt = [stripped_prompt] * grid_size[1]
+    else: prompt = [stripped_prompt]
 
-    if seed is not None:
-        generator = torch.Generator("cuda").manual_seed(seed)
+    if seed is None: seed = int(torch.randint(4294967295 - (grid_size[0] * grid_size[1]), (1,)))
+    generator = torch.Generator("cuda").manual_seed(seed)
 
-    output_name = stripped_prompt[:250]  # windows max filename
+    output_name = stripped_prompt[:200]  # windows max filename size is 255
     # should change to using image metadata to save prompt and settings
 
     all_images = []
@@ -76,37 +71,42 @@ def generate_images(prompt, pipe, steps=50, guidance=8.0, grid_size=(2, 2), H=51
     loops = grid_size[0] if batch_columns else grid_size[0] * grid_size[1]
     for i in range(loops):
         with autocast("cuda"):
-            if seed is None:
-                images, is_nsfw = pipe(prompt,
-                              num_inference_steps=steps,  # more steps = potentially more quality default=50
-                              guidance_scale=guidance,  # controls how strictly ai adheres to the prompt default=7.5
-                              height=H, width=W,  # can extend or contract, but will likely break global coherence
-                              disable_safety_checker=disable_safety_checker,
-                              safety_adjustment=safety_adjustment,
-                              blank_nsfw=blank_nsfw
-                              )
-            else:
-                images, is_nsfw = pipe(prompt, num_inference_steps=steps, guidance_scale=guidance, height=H, width=W,
-                              generator=generator,
-                              disable_safety_checker=disable_safety_checker,
-                              safety_adjustment=safety_adjustment,
-                              blank_nsfw=blank_nsfw
-                              )  # should use tuple of args to add generator instead of ifelse
+            images, is_nsfw = pipe(prompt,
+                          num_inference_steps=steps,  # more steps = potentially more quality default=50
+                          guidance_scale=guidance,  # controls how strictly ai adheres to the prompt default=7.5
+                          height=H, width=W,  # can extend or contract, but will likely break global coherence
+                          disable_safety_checker=disable_safety_checker,
+                          safety_adjustment=safety_adjustment,
+                          blank_nsfw=blank_nsfw,
+                          generator=generator
+                          )
         all_images.extend(images)
         all_image_nsfw.extend(is_nsfw)
+
+        # configs = [{ # working on a way to add metadata of generation to image
+        #     'prompt': prompt[i],
+        #     'seed': seed,
+        #     'steps': steps,
+        #     'guidance': guidance,
+        #     'version': 'StableDiffusion v1.4',
+        #     'batch': i,
+        # } for i in range(len(images))]
+
         if update_as_generated:
             gimgs = [images[i] if not is_nsfw[i] else Image.new('RGB', images[i].size, color=0)
                      for i in range(len(images))]
             grid = image_grid(gimgs, rows=1, cols=len(gimgs))
-            save_image(grid, os.getcwd() + '\\' + output_folder_name + '\\stream\\' + 'stream' + '.jpg', overwrite=True)
+            save_image(grid, os.getcwd()+'\\'+output_folder_name+'\\stream\\'+'stream'+'.jpg', overwrite=True)
+
+        # display unfiltered image
         grid = image_grid(images, rows=1, cols=len(images))
         fig, ax = plt.subplots(figsize=(9, 3))
         ax.imshow(grid)
         plt.show()
+
         if save_all_images:
-            for j in range(len(images)):  # add check for already saved pictures and add identifier for repeat prompts
-                save_image(images[j],
-                           os.getcwd() + '\\' + output_folder_name + '\\' + output_name + str(i) + str(j) + '.png')
+            for j in range(len(images)):
+                save_image(images[j], os.getcwd()+'\\'+output_folder_name+'\\'+output_name+str(i)+str(j)+'.png')
 
     #     clear_output(wait=True)
     print('"' + stripped_prompt + '"' + ' - StableDiffusion v1.4')
