@@ -14,12 +14,14 @@ Can connect to a twitch channel chat to search for commands:
 !terminate         # only the account used to connect the bot can use this command, simple command stops the bot from running
 !regenerate        # reuses the previous prompt and generates a new image/grid of images
 
-# install process: (still to be testedwith a clean install)
+# install process: (still to be tested with a clean install)
 Unfortunately getting this up and running will take a bit of techincal knowhow
 Requires a python (3.9 or above) install, along with a cuda enabled pytorch, as well as cuda itself (unfortunately will only work with cuda gpu).
 Currently is using a python notebook and so requires jupyter, but could probably be converted into a simple .py file.
 
 # To Do:
+add proper system that saves generation details in image metadata
+add a forward and backward command that lets scrolling through previous images, with optional slideshow
 create a system that handles downloading required libraries and programs, so as to make installing a much less difficult process
 exhaustively test safety filter settings and present data to give people an idea of how safe (and not safe) it is
 create gui? would be nice to have sliders and buttons to handle tuning settings and starting/restarting the bot, would also make it more accessible
