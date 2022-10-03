@@ -1,7 +1,8 @@
 # StreamStableDiffusionNotebook
 A simple ipython notebook to enable users in a twitch chat to generate images on stream.
 
-# currently overhauling this to integrate/piggyback off of the fantastic webui here: https://github.com/sd-webui/stable-diffusion-webui
+Currently overhauling this to integrate/piggyback off of a webui stablediffusion, so that this repo can more focus on the basic functionality of not exploding twitch or obs randomly
+check out the webui here: https://github.com/sd-webui/stable-diffusion-webui
 
 # Functionality
 

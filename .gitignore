@@ -1,4 +1,3 @@
-
-*output/
-*checkpoints/
+*config.json
+*streamable_output/
 *__pycache__/
