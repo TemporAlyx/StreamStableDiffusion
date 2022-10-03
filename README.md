@@ -1,11 +1,12 @@
 # StreamStableDiffusionNotebook
 A simple ipython notebook to enable users in a twitch chat to generate images on stream.
 
+# currently overhauling this to integrate/piggyback off of the fantastic webui here: https://github.com/sd-webui/stable-diffusion-webui
+
 # Functionality
-Uses stable diffusions safety filter to prevent displaying nsfw content on stream, this notebook uses a cracked open version of the safety filter so that you can adjust the threshold. This is not entirely foolproof, but I've yet to see anything explicitly bad on higher settings of the threshold, although it can misclassify benign images.
-Generating an image calls an interface with several editable commands in the notebook, defining whether images get saved, whether to generate a grid of images, and what to do in the event of an nsfw image being detected. 
 
 Generated images are saved to an overwritten stream.jpg file that obs can watch for, as well as a text file to output who requested it, and a text file for the prompt
+Utilizes StableDiffusion's Safety filter to (ideally) prevent any nsfw prompts making it to stream
 
 Can connect to a twitch channel chat to search for commands:
 !generate {prompt} # generates an image based off of the given prompt
