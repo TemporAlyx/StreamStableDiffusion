@@ -10,15 +10,46 @@ import json
 import os
 import re
 import socket
+import time
 import numpy as np
 from emoji import demojize
 from PIL import Image, ExifTags
 from safetyfilter import check_safety
 
 
+default_config = {
+    "server": "irc.chat.twitch.tv",
+    "port": 6667,
+    "nickname": "put_your_twitch_username_here",
+    "token": "oauth:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "channel": "#put_the_channel_name_here",
+    "webui_url": "http://localhost:7860",
+    "output_folder_name": "streamable_output",
+    "default_args": {
+        "prompt": "",
+        "n_imgs": 4
+        }
+    }
+
+# load config
+if not os.path.isfile(os.path.join(os.getcwd(), 'config.json')): # if no config is found, create default one and save it
+    with open(os.path.join(os.getcwd(), 'config.json'), 'w') as f:
+        json.dump(default_config, f, indent=4)
+    
+    # exit program
+    print('config.json not found, default config created, please fill in the details and restart the program')
+    time.sleep(5)
+    exit()
+
 # load config
 with open(os.path.join(os.getcwd(), 'config.json')) as f:
     config = json.load(f)
+
+    if config == default_config:
+        print('config.json is default, please fill in the details and restart the program')
+        time.sleep(30)
+        exit()
+
     server = config['server']
     port = config['port']
     nickname = config['nickname']
@@ -29,8 +60,15 @@ with open(os.path.join(os.getcwd(), 'config.json')) as f:
     webui_url = config['webui_url']
 
 
-def parse_arguments(args): # will handle splitting complex additional arguments
-    return {'prompt': args} # but for now assume its just all the prompt
+# handles splitting complex additional arguments in command request
+def parse_arguments(copied_string):
+    params = {}
+    for arg in copied_string.split(' '):
+        if ':' in arg:
+            key, val = arg.split(':')
+            params[key] = val
+    params['prompt'] = ' '.join([x for x in copied_string.split(' ') if ':' not in x])
+    return params
 
 def command_lookup(msg, usr):
     global default_args
@@ -38,7 +76,7 @@ def command_lookup(msg, usr):
         cmd = msg.split(' ')[0].lower()[1:]
         args = ' '.join(msg.split(' ')[1:]).replace('\r', '').replace('\n', '')
 
-        print('found !command: ' + cmd + ', with args: ' + args)
+        print('found !command: !' + cmd + ', with args: ' + args)
         
         if cmd == 'generate' or cmd == 'gen':
             parsed_args = parse_arguments(args)
@@ -47,14 +85,16 @@ def command_lookup(msg, usr):
             params['user'] = usr
             params['full_message'] = msg
             
-            for i in range(params['n_imgs']):
-                command_queue.append([generate, params])
+            command_queue.append([generate, params])
             
         elif (cmd == 'clear' or cmd == 'cl' or cmd == 'c') and usr == nickname:
             clear()
             
         elif (cmd == 'approve' or cmd == 'app' or cmd == 'a') and usr == nickname:
             approve()
+
+        else:
+            print('command not found')
 
 def generate(webui, args):
     webui.generate(args)
@@ -64,10 +104,8 @@ def approve():
     update_image(active_image[0], active_image[1], override=True)
 
 def clear():
-    # update image with blank black image
-    # create numpy black image and convert to PIL image
-    update_image(Image.fromarray(np.zeros((512,512,3), dtype=np.uint8)), 
-                {'prompt': '', 'user': '', 'is_safe': True})
+    empty_image = Image.fromarray(np.zeros((512,512,3), dtype=np.uint8))
+    update_image(empty_image, {'prompt': '', 'user': '', 'is_safe': True})
 
 def image_grid(imgs, rows, cols):
     # assert len(imgs) == rows * cols
@@ -82,55 +120,76 @@ def image_grid(imgs, rows, cols):
 # function that loads image from disk and grabs attributes from custom metadata
 def load_image(path):
     img = Image.open(path)
-    exif = { ExifTags.TAGS[k]: v for k, v in img._getexif().items() if k in ExifTags.TAGS}
-    params = json.loads(exif['UserComment'].decode('utf-8'))
+    exif = img.getexif()
+    if exif is not None:
+        params = exif[0x9286].decode('utf-8')
+        if params[:8] == 'gridflag':
+            params = params[8:]
+            params = params.split('||||')
+            params = [json.loads(x) for x in params]
+        else:
+            params = json.loads(params)
+    else:
+        params = {} # if no metadata, return empty dict
+        print('no metadata found for stream.jpg image')
     return [img, params]
 
 def check_outputs(webui, command):
-    images, params = webui.get_outputs(command)
-    if images:
-        return images, params
-    return False, None
-
+    return webui.get_outputs(command)
             
 # update stream.jpg image on disk using PIL and saving params to metadata
-# depending on length of list create image grid of appropriate size
+# depending on length of list create image grid of appropriate size, and check if images are safe
 # then save to disk with metadata exif comment tag
-def update_image(images, params, override=None):
+# images and params can both independantly be lists or single items
+def update_image(images, params, override=None):  # honestly this function is a mess and should be cleaned up
     global active_image
-    if images is list:
-        if len(images) == 1:
-            img = images[0]
+
+    if type(images) is not list: # janky
+        images = [images]
+    if type(params) is not list:
+        params = [params]
+
+    assert len(images) == len(params) # makes things much easier if they are the same length
+
+    checked_images = []
+    checked_params = []
+    for i in range(len(images)):
+        if 'is_safe' in params[i].keys():
+            if override is None: override = params[i]['is_safe']
+            else: override = False
+
+        if override:
+            checked_image = images[i]
+            is_safe = True
         else:
-            grid_size = len(images) // 2
-            img = image_grid(images, grid_size, grid_size)
+            new_checked_image, is_safe = check_safety(images[i])
+            if type(new_checked_image) is list: # sanity check
+                if len(new_checked_image) == 1:
+                    new_checked_image = new_checked_image[0]
+                    is_safe = is_safe[0]
+                else:
+                    print('something somewhere went wrong i dont know why Im leaving open the possability for batch generating ~~this is getting so convoluted~~')
+        cparams = params[i].copy()
+        cparams['is_safe'] = is_safe
+        checked_images.append(new_checked_image)
+        checked_params.append(cparams)
+
+    if len(images) == 1:
+        img = checked_images[0]
+        par = json.dumps(checked_params[0]).encode('utf-8')
     else:
-        img = images
-
-    # check if is_safe in params
-    if 'is_safe' in params.keys():
-        if override is None:
-            override = params['is_safe']
-        else:
-            override = False
-
-    # check image for nsfw 
-    if override:
-        checked_image = img
-        is_safe = True
-    else:
-        checked_image, is_safe = check_safety(img)
-        if not is_safe:
-            print('potential NSFW image detected, saving blurred image to stream instead')
-
-    params.update({'is_safe': is_safe})
+        grid_size = len(images) // 2
+        if grid_size ** 2 != len(images):
+            print('grid size not square, will have empty squares')
+        img = image_grid(images, grid_size, grid_size)
+        par = ('gridflag' + '||||'.join([json.dumps(x) for x in checked_params])).encode('utf-8') # don't know if this will work but it's worth a shot
 
     # find the exif tag for user comment and add params to it
-    exif = checked_image.getexif() # should use ExifTags to search for UserComments instead of hardcoding
-    exif[0x9286] = json.dumps(params).encode('utf-8')
+    exif = img.getexif() # should use ExifTags to search for UserComments so its clearer
+    exif[0x9286] = par
+    img.save(os.path.join(os.getcwd(),output_folder_name,'stream/stream.jpg'), quality=95, exif=exif)
+    active_image = [img, par]
 
-    checked_image.save(os.path.join(os.getcwd(),output_folder_name,'stream/stream.jpg'), quality=95, exif=exif)
-    active_image = [images, params]
 
 # process images from webui by converting from base64 to PIL image
 def process_images(images):
@@ -159,25 +218,43 @@ else:
 from selenium_interface import Interfacer
 Webui_Interface = Interfacer(webui_url)
     
+def create_socket():
+    print('connecting to twitch...', end='')
+    try:
+        sock = socket.socket()
+        sock.connect((server, port))
+        sock.settimeout(1.0)
+
+        sock.send(f"PASS {token}\n".encode('utf-8'))
+        sock.send(f"NICK {nickname}\n".encode('utf-8'))
+        sock.send(f"JOIN {channel}\n".encode('utf-8'))
+    except:
+        print('failed')
+        return None
+    print('success')
+    return sock
+
+def close_socket(sock, msg='error'):
+    sock.close()
+    print(f'{msg}; socket has been closed')
+    return None
 
 def main():
     global active_image, active_command, commands_left_in_batch, command_queue, output_list, Webui_Interface, nickname, channel, server, port, token
 
-    sock = socket.socket()
-    sock.connect((server, port))
-    sock.settimeout(1.0)
-
-    sock.send(f"PASS {token}\n".encode('utf-8'))
-    sock.send(f"NICK {nickname}\n".encode('utf-8'))
-    sock.send(f"JOIN {channel}\n".encode('utf-8'))
+    sock = create_socket()
     
     while True:
         try:
-            resp = sock.recv(2048, socket.MSG_DONTWAIT).decode('utf-8')
+            if sock is None:
+                print('socket disconnected, retrying connection...')
+                sock = create_socket()
+            resp = sock.recv(2048).decode('utf-8')
             print(resp)
 
             if resp.startswith('PING'):
                 sock.send("PONG\n".encode('utf-8'))
+                print('PONG')
                 
             elif len(resp) > 0:
                 last_msg = demojize(resp)
@@ -185,50 +262,66 @@ def main():
                 if msg_deconstruct is not None:
                     user, chl, msg = msg_deconstruct.groups()
                     command_lookup(msg, user)
-                    
-        except socket.timeout:
-            continue
+
         except ConnectionAbortedError:
-            continue
+            sock = close_socket(sock, 'connection aborted')
+        except ConnectionResetError:
+            sock = close_socket(sock, 'connection reset')
         except KeyboardInterrupt:
-            print('closing connection...')
-            sock.close()
-            break
+            sock = close_socket(sock, 'keyboard interrupt')
+        except socket.timeout:
+            pass
             
-        if active_command == None:
+        if active_command is None:
             if len(command_queue) > 0:
                 next_command = command_queue.pop(0)
                 next_command[0](Webui_Interface, next_command[1])
                 active_command = next_command
-                print(f'running command {next_command[0].__name__}, with args {next_command[1]}')
-                commands_left_in_batch = next_command[1]['n_imgs']
+                commands_left_in_batch = active_command[1]['n_imgs']
+                print(f'running command {active_command[0].__name__}, with args {active_command[1]}, {commands_left_in_batch} images left in batch')
+                # time.sleep(0.5)
         else:
-            images, params = check_outputs(Webui_Interface, active_command)
-            if images:
-                output_list.append([images, params])
-                active_command = None
-                images = process_images(images)
-                full_params = next_command[1].copy()
-                full_params.update(params)
-                update_image(images, full_params)
-                comands_left_in_batch -= 1  # only works for generating images in batches of one, which is fine given the ram limitations
+            images, params = check_outputs(Webui_Interface, active_command) # the check to prevent repeated images isnt working so we'll compare to the last image in the output list
+            if len(images) > 0:
+                if len(output_list) == 0 or (len(output_list) > 0 and params[0]['seed'] != output_list[-1][1]['seed']):
+                    print(f'!{active_command[0].__name__} command is done..')
+                    images = process_images(images)
+                    for i in range(len(images)):
+                        output_list.append([images[i], params[i]])
+                    if not params:
+                        print('warning: no params returned from command')
 
-                #  if thats the last image in the batch, create grid update image
-                if commands_left_in_batch == 0:
-                    images_from_this_batch = output_list[-next_command[1]['n_imgs']::]
-                    update_image(images_from_this_batch, full_params)
+                    full_params = []
+                    for i in range(len(params)):
+                        f_params = active_command[1].copy()
+                        f_params.update(params[i])
+                        full_params.append(f_params)
+                    update_image(images, full_params)
+
+                    commands_left_in_batch -= 1
+
+                    #  if thats the last image in the batch, create grid update image
+                    if commands_left_in_batch == 0:
+                        print('batch done, creating grid...', end='')
+                        images_from_this_batch = output_list[-active_command[1]['n_imgs']::]
+                        output_list = output_list[:-active_command[1]['n_imgs']]
+
+                        # images_from_this_batch are 
+                        images = []
+                        params = []
+                        for i in range(len(images_from_this_batch)):
+                            images.append(images_from_this_batch[i][0])
+                            params.append(images_from_this_batch[i][1])
+                        update_image(images, params)
+                        active_command = None
+                        print('done')
+                    else:
+                        print(f'running next command: !{active_command[0].__name__} \nwith args: {active_command[1]} \n {commands_left_in_batch} images left in batch')
+                        active_command[0](Webui_Interface, active_command[1])
+                        # time.sleep(0.5)
 
 
             # might need differeing logic for how to communicate with interface for grabbing data
-            
-    # how hard would it be to rewrite that while loop as a coroutine?
-    # attempt to rewrite loop such that it isnt hung on socket.recv
-
-    while True:
-        resp = sock.recv(1024, socket.MSG_DONTWAIT).decode('utf-8')
-
-
-
 
 
 if __name__ == "__main__":

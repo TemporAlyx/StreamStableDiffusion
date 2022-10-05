@@ -19,10 +19,12 @@ class Interfacer:
         
         # self.start_webui()
         
+        print("Opening browser...", end='')
+
         self.driver = webdriver.Firefox()
         self.driver.get(self.url)
         
-        # time.sleep(1) # wait for page to load
+        print("done")
         
         self.update_content()
         
@@ -38,15 +40,18 @@ class Interfacer:
             'sampler_dropdown': lambda x: x.find_element(By.CSS_SELECTOR, "select[class*='gr-input']"),
             'refresh_finished': lambda x: x.find_element(By.CSS_SELECTOR, "button[class*='bg-white']"),
             'images': lambda x: x.find_elements(By.CSS_SELECTOR, "img[class*='h-full w-full']"),
-            'copy_params': lambda x: x.find_element(By.CSS_SELECTOR, "button[id*='49']"),
+            'copy_params': lambda x: x.find_element(By.CSS_SELECTOR, "div[data-testid*='textfield']"),
+            'is_finished_generating': lambda x: x.find_element(By.CSS_SELECTOR, "textarea[placeholder*='Job Status']"),
             'generate_button': lambda x: x.find_element(By.CSS_SELECTOR, "button[id*='generate']"),
         }
         
     def get_element(self, name):
         self.update_content()  # probably overkill to run every get
         # aught to test before and after timings
-        
-        el = self.elements[name](self.content)
+        try:
+            el = self.elements[name](self.content)
+        except:
+            el = 'falied to find element' # should probably add logic later on to handle this better
         
         # if name == 'prompt':
         #     return el
@@ -64,14 +69,12 @@ class Interfacer:
         elif name == 'images':
             return [re.sub('^data:image/.+;base64,', '', x.get_attribute('src')) for x in el]
         elif name == 'copy_params':
-            # el is a button element, which copies the params to the clipboard
-            # we want to directly get the params without having to use the clipboard
-            # so we need to get the params from the button's onclick attribute
-            onclick = el.get_attribute('onclick')
-            print(onclick)
-
-            return  onclick # feels so hacky to do this
-        
+            return el.get_attribute('textContent')
+        elif name == 'is_finished_generating':
+            if el == 'falied to find element':
+                return False
+            else:
+                return True 
         return None
 
     def set_element(self, name, val=None):
@@ -112,12 +115,31 @@ class Interfacer:
         self.set_element('generate_button')
         
     def get_outputs(self, args):
-        imgs = self.get_element('images')
-        if imgs:
-            params = self.get_element('copy_params')
-        else:
-            params = None
-        return imgs, params
+        # check if done generating
+        if self.get_element('is_finished_generating'):
+            imgs = self.get_element('images')
+            if len(imgs) > 0:
+                params = self.get_element('copy_params')
+                params = self.get_params(params) # should check to make sure this is a valid params string
+                params = [params for _ in range(len(imgs))]
+                return imgs, params
+        return [], {}
+
+    # takes a string of params, with the format:
+    # example: 
+    # '''halloween cat, awesome painting
+    # seed:  3609555222   width:  512   height:  512   steps:  50   cfg_scale:  7.5   sampler:  k_lms'''
+    # returns a dict of the values
+    def get_params(self, copied_string):
+        prompt = copied_string.split('\n')[0]
+        params = {}
+        args = ''.join(copied_string.split('\n')[1].split('\xa0')).split('  ')
+        for line in args:
+            line = line.split(':')
+            if len(line) == 2:
+                params[line[0].strip()] = line[1].strip()
+        params['prompt'] = prompt
+        return params
 
 
 # def get_settings():
