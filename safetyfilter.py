@@ -21,3 +21,7 @@ def check_safety(x_image):
             x_checked_image[i] = x_image[i].filter(ImageFilter.GaussianBlur(radius=25))
             print('potential NSFW image detected, saving blurred image to stream instead')
     return x_checked_image, has_nsfw_concept
+
+# this all works, but it seems like its loading the model each time
+# may be easier to rewrite this as a class and load the model once, keeping it in memory
+# that or figure out how bad it would be to run it on cpu

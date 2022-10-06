@@ -16,6 +16,8 @@ class Interfacer:
     def __init__(self, url="http://localhost:7860/", webui_loc=os.getcwd()):
         self.webui_loc = webui_loc  # probably dont need
         self.url = url
+
+        self.last_output = None
         
         # self.start_webui()
         
@@ -41,7 +43,6 @@ class Interfacer:
             'refresh_finished': lambda x: x.find_element(By.CSS_SELECTOR, "button[class*='bg-white']"),
             'images': lambda x: x.find_elements(By.CSS_SELECTOR, "img[class*='h-full w-full']"),
             'copy_params': lambda x: x.find_element(By.CSS_SELECTOR, "div[data-testid*='textfield']"),
-            'is_finished_generating': lambda x: x.find_element(By.CSS_SELECTOR, "textarea[placeholder*='Job Status']"),
             'generate_button': lambda x: x.find_element(By.CSS_SELECTOR, "button[id*='generate']"),
         }
         
@@ -70,11 +71,6 @@ class Interfacer:
             return [re.sub('^data:image/.+;base64,', '', x.get_attribute('src')) for x in el]
         elif name == 'copy_params':
             return el.get_attribute('textContent')
-        elif name == 'is_finished_generating':
-            if el == 'falied to find element':
-                return False
-            else:
-                return True 
         return None
 
     def set_element(self, name, val=None):
@@ -116,10 +112,11 @@ class Interfacer:
         
     def get_outputs(self, args):
         # check if done generating
-        if self.get_element('is_finished_generating'):
-            imgs = self.get_element('images')
-            if len(imgs) > 0:
-                params = self.get_element('copy_params')
+        imgs = self.get_element('images')
+        if len(imgs) > 0:
+            params = self.get_element('copy_params')
+            if params != self.last_output:
+                self.last_output = params
                 params = self.get_params(params) # should check to make sure this is a valid params string
                 params = [params for _ in range(len(imgs))]
                 return imgs, params

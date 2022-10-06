@@ -46,7 +46,7 @@ with open(os.path.join(os.getcwd(), 'config.json')) as f:
     config = json.load(f)
 
     if config == default_config:
-        print('config.json is default, please fill in the details and restart the program')
+        print('config.json has not been configured, or is incorrectly configured, please fill in the details and restart the program')
         time.sleep(30)
         exit()
 
@@ -140,7 +140,7 @@ def check_outputs(webui, command):
 # update stream.jpg image on disk using PIL and saving params to metadata
 # depending on length of list create image grid of appropriate size, and check if images are safe
 # then save to disk with metadata exif comment tag
-# images and params can both independantly be lists or single items
+# images and params can both independantly be lists or single items, would be easier if we could assume that single items are generation requests, and lists are for grids
 def update_image(images, params, override=None):  # honestly this function is a mess and should be cleaned up
     global active_image
 
@@ -149,7 +149,7 @@ def update_image(images, params, override=None):  # honestly this function is a 
     if type(params) is not list:
         params = [params]
 
-    assert len(images) == len(params) # makes things much easier if they are the same length
+    assert len(images) == len(params) # makes things much easier if they are the same length, although could be instances where its multiple images with one set of params
 
     checked_images = []
     checked_params = []
@@ -167,8 +167,6 @@ def update_image(images, params, override=None):  # honestly this function is a 
                 if len(new_checked_image) == 1:
                     new_checked_image = new_checked_image[0]
                     is_safe = is_safe[0]
-                else:
-                    print('something somewhere went wrong i dont know why Im leaving open the possability for batch generating ~~this is getting so convoluted~~')
         cparams = params[i].copy()
         cparams['is_safe'] = is_safe
         checked_images.append(new_checked_image)
@@ -183,12 +181,13 @@ def update_image(images, params, override=None):  # honestly this function is a 
             print('grid size not square, will have empty squares')
         img = image_grid(images, grid_size, grid_size)
         par = ('gridflag' + '||||'.join([json.dumps(x) for x in checked_params])).encode('utf-8') # don't know if this will work but it's worth a shot
+        output_list.append([images, checked_params]) # if its a grid we want to add it to the output list so that we can access it later
 
     # find the exif tag for user comment and add params to it
     exif = img.getexif() # should use ExifTags to search for UserComments so its clearer
     exif[0x9286] = par
     img.save(os.path.join(os.getcwd(),output_folder_name,'stream/stream.jpg'), quality=95, exif=exif)
-    active_image = [img, par]
+    active_image = [images, checked_params]
 
 
 # process images from webui by converting from base64 to PIL image
@@ -279,46 +278,44 @@ def main():
                 active_command = next_command
                 commands_left_in_batch = active_command[1]['n_imgs']
                 print(f'running command {active_command[0].__name__}, with args {active_command[1]}, {commands_left_in_batch} images left in batch')
-                # time.sleep(0.5)
         else:
-            images, params = check_outputs(Webui_Interface, active_command) # the check to prevent repeated images isnt working so we'll compare to the last image in the output list
-            if len(images) > 0:
-                if len(output_list) == 0 or (len(output_list) > 0 and params[0]['seed'] != output_list[-1][1]['seed']):
-                    print(f'!{active_command[0].__name__} command is done..')
-                    images = process_images(images)
-                    for i in range(len(images)):
-                        output_list.append([images[i], params[i]])
-                    if not params:
-                        print('warning: no params returned from command')
+            images, params = check_outputs(Webui_Interface, active_command) # the check to prevent grabbing images before generation is done isnt working well
+            if len(images) > 0: 
 
-                    full_params = []
-                    for i in range(len(params)):
-                        f_params = active_command[1].copy()
-                        f_params.update(params[i])
-                        full_params.append(f_params)
-                    update_image(images, full_params)
+                print(f'!{active_command[0].__name__} command is done..')
+                images = process_images(images)
+                for i in range(len(images)):
+                    output_list.append([images[i], params[i]])
+                if not params:
+                    print('warning: no params returned from command')
 
-                    commands_left_in_batch -= 1
+                full_params = []
+                for i in range(len(params)):
+                    f_params = active_command[1].copy()
+                    f_params.update(params[i])
+                    full_params.append(f_params)
+                update_image(images, full_params)
 
-                    #  if thats the last image in the batch, create grid update image
-                    if commands_left_in_batch == 0:
-                        print('batch done, creating grid...', end='')
-                        images_from_this_batch = output_list[-active_command[1]['n_imgs']::]
-                        output_list = output_list[:-active_command[1]['n_imgs']]
+                commands_left_in_batch -= 1
 
-                        # images_from_this_batch are 
-                        images = []
-                        params = []
-                        for i in range(len(images_from_this_batch)):
-                            images.append(images_from_this_batch[i][0])
-                            params.append(images_from_this_batch[i][1])
-                        update_image(images, params)
-                        active_command = None
-                        print('done')
-                    else:
-                        print(f'running next command: !{active_command[0].__name__} \nwith args: {active_command[1]} \n {commands_left_in_batch} images left in batch')
-                        active_command[0](Webui_Interface, active_command[1])
-                        # time.sleep(0.5)
+                #  if thats the last image in the batch, create grid update image
+                if commands_left_in_batch == 0:
+                    print('batch done, creating grid...', end='')
+                    images_from_this_batch = output_list[-active_command[1]['n_imgs']:]
+                    output_list = output_list[:-active_command[1]['n_imgs']]
+
+                    # images_from_this_batch are 
+                    images = []
+                    params = []
+                    for i in range(len(images_from_this_batch)):
+                        images.append(images_from_this_batch[i][0])
+                        params.append(images_from_this_batch[i][1])
+                    update_image(images, params)
+                    active_command = None
+                    print('done')
+                else:
+                    print(f'running next command: !{active_command[0].__name__} \nwith args: {active_command[1]} \n {commands_left_in_batch} images left in batch')
+                    active_command[0](Webui_Interface, active_command[1])
 
 
             # might need differeing logic for how to communicate with interface for grabbing data
