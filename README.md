@@ -39,4 +39,4 @@ with a little luck that should be it
 
 
 A massive shoutout to the open source communities that are making the future of AI open to everyone.
-Feel free to modify or reuse this code, as long as it eventually ends up as publicly accessible code for anyone to use/learn from.
+Feel free to modify or reuse the code in this repository, as long as it eventually ends up as publicly accessible code for anyone to use/learn from.
