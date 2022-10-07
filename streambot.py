@@ -70,15 +70,22 @@ def parse_arguments(copied_string):
     params['prompt'] = ' '.join([x for x in copied_string.split(' ') if ':' not in x])
     return params
 
-def command_lookup(msg, usr):
-    global default_args
-    if msg[0] == '!':  # is command
-        cmd = msg.split(' ')[0].lower()[1:]
-        args = ' '.join(msg.split(' ')[1:]).replace('\r', '').replace('\n', '')
+# cfc: check for command, trims any whitespace and checks whether first characters match any of the commands in *cmd
+def cfc(msg, *cmd):
+    msg = msg.strip()
+    for c in cmd:
+        if msg.lower().startswith(c):
+            return True
+    return False
 
-        print('found !command: !' + cmd + ', with args: ' + args)
+def command_lookup(msg, usr):
+    global default_args, active_image
+    if msg[0] == '!':  # is command
+        msg = msg[1:]
+        print('found !command: ' + msg.split(' ')[0])
+        args = ' '.join(msg.split(' ')[1:]).replace('\r', '').replace('\n', '')
         
-        if cmd == 'generate' or cmd == 'gen':
+        if cfc(msg, 'generate', 'gen', 'g'):
             parsed_args = parse_arguments(args)
             params = default_args.copy()
             params.update(parsed_args)
@@ -86,15 +93,64 @@ def command_lookup(msg, usr):
             params['full_message'] = msg
             
             command_queue.append([generate, params])
+            print('added generate command to queue')
             
-        elif (cmd == 'clear' or cmd == 'cl' or cmd == 'c') and usr == nickname:
+        elif cfc(msg, 'clear', 'c') and usr == nickname:
             clear()
+            print('cleared image')
             
-        elif (cmd == 'approve' or cmd == 'app' or cmd == 'a') and usr == nickname:
+        elif cfc(msg, 'approve', 'a') and usr == nickname:
             approve()
+            print('approved image')
+
+        elif cfc(msg, 'params'):
+            if type(active_image[1]) is list:
+                active_params = get_active_params(active_image[1])
+            else:
+                active_params = get_active_params([active_image[1]])
+            send_message(active_params)
+            print('sent params')
+
+        elif cfc(msg, 'seed'):
+            if type(active_image[1]) is list:
+                seed = [x['seed'] for x in active_image[1]]
+            else:
+                seed = active_image[1]['seed']
+            out_msg = f"seed: {seed}"
+            print(out_msg)
+            send_message(out_msg)
+
+        elif cfc(msg, 'prompt'):
+            if type(active_image[1]) is list:
+                prompt = [x['prompt'] for x in active_image[1]]
+                if all(x == prompt[0] for x in prompt): # https://stackoverflow.com/questions/3787908/python-determine-if-all-items-of-a-list-are-the-same-item
+                    prompt = prompt[0]
+            else:
+                prompt = active_image[1]['prompt']
+            out_msg = f"prompt: {prompt}"
+            print(out_msg)
+            send_message(out_msg)
 
         else:
             print('command not found')
+
+# takes a list of param dicts and grabs essential print information, condenses duplicates
+def get_active_params(list_of_dicts):
+    important_params = ['prompt', 'seed', 'steps', 'cfg_scale', 'sampler']
+    out = []
+    for p in important_params:
+        part = []
+        for d in list_of_dicts:
+            if p in d:
+                part.append(d[p])
+        if len(part) == 1:
+            out.append(f"{p}: {part[0]}")
+        elif len(part) > 1:
+            if all(x == part[0] for x in part):
+                out.append(f"{p}: {part[0]}")
+            else:
+                out.append(f"{p}: {part}")
+    return ', '.join(out)
 
 def generate(webui, args):
     webui.generate(args)
@@ -117,6 +173,13 @@ def image_grid(imgs, rows, cols):
         grid.paste(img, box=(i % cols * w, i // cols * h))
     return grid
 
+# sends message to channel
+def send_message(msg):
+    global sock, channel
+    msg = str(msg) # make sure it's a string
+    sock.send(f"PRIVMSG {channel} :{msg}\r\n".encode('utf-8'))
+
+
 # function that loads image from disk and grabs attributes from custom metadata
 def load_image(path):
     img = Image.open(path)
@@ -127,6 +190,17 @@ def load_image(path):
             params = params[8:]
             params = params.split('||||')
             params = [json.loads(x) for x in params]
+            # if image is a grid we also want to split the grid up into individual images and return them
+            imgs = []
+            n_imgs = params[0]['n_imgs']
+            grid_size = int(np.ceil(np.sqrt(n_imgs)))
+            
+            M = int(params[0]['height'])
+            N = int(params[0]['width'])
+            im = np.array(img) # https://stackoverflow.com/questions/5953373/how-to-split-image-into-multiple-pieces-in-python
+            tiles = [im[x:x+M,y:y+N] for x in range(0,im.shape[0],M) for y in range(0,im.shape[1],N)]  # unsure if this will untule the grid correctly
+            img = [Image.fromarray(x) for x in tiles]
+
         else:
             params = json.loads(params)
     else:
@@ -155,9 +229,11 @@ def update_image(images, params, override=None):  # should rewrite this to be tw
     checked_images = []
     checked_params = []
     for i in range(len(images)):
-        if 'is_safe' in params[i].keys():
-            if override is None: override = params[i]['is_safe']
-            else: override = False
+        if override is None: 
+            if 'is_safe' in params[i].keys():
+                override = params[i]['is_safe']
+            else: 
+                override = False
 
         if override: # should add if override is None, and if False then just blur image here instead of sending to safety checker
             checked_image = images[i]
@@ -179,7 +255,7 @@ def update_image(images, params, override=None):  # should rewrite this to be tw
         par = json.dumps(checked_params[0]).encode('utf-8')
         output_list.append([images[0], checked_params[0]])
     else:
-        grid_size = len(checked_images) // 2
+        grid_size = int(np.ceil(np.sqrt(len(checked_images))))
         if grid_size ** 2 != len(checked_images):
             print('grid size not square, will have empty squares')
         img = image_grid(checked_images, grid_size, grid_size)
@@ -255,6 +331,7 @@ if not os.path.isfile(os.path.join(os.getcwd(),output_folder_name,'stream/user.t
 
 from selenium_interface import Interfacer
 Webui_Interface = Interfacer(webui_url)
+sock = None #aught to just rewrite this all to be a class
     
 def create_socket():
     print('connecting to twitch...', end='')
@@ -278,7 +355,7 @@ def close_socket(sock, msg='error'):
     return None
 
 def main():
-    global active_image, active_command, commands_left_in_batch, command_queue, output_list, Webui_Interface, nickname, channel, server, port, token
+    global active_image, active_command, commands_left_in_batch, command_queue, output_list, Webui_Interface, nickname, channel, server, port, token, sock
 
     sock = create_socket()
     
@@ -357,7 +434,6 @@ def main():
                     print(f'{commands_left_in_batch} images left in batch, {len(command_queue)} remaining commands left in queue') 
                     active_command[0](Webui_Interface, active_command[1])
             else:
-                image_n = (active_command[1]['n_imgs'] - commands_left_in_batch) + 1
                 u = f'generating image '+str((active_command[1]['n_imgs'] - commands_left_in_batch) + 1)+'/'+str(active_command[1]['n_imgs'])
                 if len(command_queue) > 0:
                     u += f', queued: {len(command_queue)}'
