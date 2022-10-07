@@ -1,4 +1,4 @@
-# StreamStableDiffusionNotebook
+# StreamStableDiffusion
 Simple Twitch bot for StableDiffusion !generate chat commands, facilitated by interfacing with [stable-diffusion-webui](https://github.com/sd-webui/stable-diffusion-webui) via selenium
 
 # Functionality
