@@ -151,13 +151,13 @@ def update_image(images, params, override=None):  # honestly this function is a 
 
     assert len(images) == len(params) # makes things much easier if they are the same length, although could be instances where its multiple images with one set of params
 
+    # could maybe take part of this block out as a function for checking/approving images with override
     checked_images = []
     checked_params = []
     for i in range(len(images)):
         if 'is_safe' in params[i].keys():
             if override is None: override = params[i]['is_safe']
             else: override = False
-
         if override:
             checked_image = images[i]
             is_safe = True
@@ -171,15 +171,16 @@ def update_image(images, params, override=None):  # honestly this function is a 
         cparams['is_safe'] = is_safe
         checked_images.append(new_checked_image)
         checked_params.append(cparams)
+    active_image = [images, checked_params]
 
-    if len(images) == 1:
+    if len(checked_images) == 1:
         img = checked_images[0]
         par = json.dumps(checked_params[0]).encode('utf-8')
     else:
-        grid_size = len(images) // 2
-        if grid_size ** 2 != len(images):
+        grid_size = len(checked_images) // 2
+        if grid_size ** 2 != len(checked_images):
             print('grid size not square, will have empty squares')
-        img = image_grid(images, grid_size, grid_size)
+        img = image_grid(checked_images, grid_size, grid_size)
         par = ('gridflag' + '||||'.join([json.dumps(x) for x in checked_params])).encode('utf-8') # don't know if this will work but it's worth a shot
         output_list.append([images, checked_params]) # if its a grid we want to add it to the output list so that we can access it later
 
@@ -187,7 +188,24 @@ def update_image(images, params, override=None):  # honestly this function is a 
     exif = img.getexif() # should use ExifTags to search for UserComments so its clearer
     exif[0x9286] = par
     img.save(os.path.join(os.getcwd(),output_folder_name,'stream/stream.jpg'), quality=95, exif=exif)
-    active_image = [images, checked_params]
+
+    # save user who requested image to a text file, along with a truncated version of the prompt
+    with open(os.path.join(os.getcwd(),output_folder_name,'stream/user.txt'), 'w') as f:
+        from_user = checked_params[0]['user']
+        prompt = checked_params[0]['prompt']
+        if len(prompt) > 40:
+            prompt = prompt[:40] + '\n' + prompt[40:]
+            if len(prompt) > 82:
+                prompt = prompt[:82] + '\n' + prompt[82:]
+                if len(prompt) > 124:
+                    prompt = prompt[:124] + '...'
+        f.write(from_user + ':\n' + prompt)
+    
+
+
+def update_generate_text(txt):
+    with open(os.path.join(os.getcwd(),output_folder_name,'stream/generate.txt'), 'w') as f:
+        f.write(txt)
 
 
 # process images from webui by converting from base64 to PIL image
@@ -209,10 +227,29 @@ if not os.path.isdir(os.path.join(os.getcwd(),output_folder_name)):
 if not os.path.isdir(os.path.join(os.getcwd(),output_folder_name,'stream')):
     os.mkdir(os.path.join(os.getcwd(),output_folder_name,'stream'))
 
-if os.path.isfile(os.path.join(os.getcwd(),output_folder_name,'stream/stream.jpg')):
-    active_image = load_image(os.path.join(os.getcwd(),output_folder_name,'stream/stream.jpg'))
+if not os.path.isfile(os.path.join(os.getcwd(),output_folder_name,'stream/stream.jpg')):
+    # save blank image to stream.jpg
+    img = Image.new('RGB', size=(512, 512), color=(0, 0, 0))
+    exif = img.getexif() # should use ExifTags to search for UserComments so its clearer
+    exif[0x9286] = json.dumps({}).encode('utf-8')
+    img.save(os.path.join(os.getcwd(),output_folder_name,'stream/stream.jpg'), quality=95, exif=exif)
 else:
-    clear()
+    active_image = load_image(os.path.join(os.getcwd(),output_folder_name,'stream/stream.jpg'))
+
+# check if generate.txt exists, if not create it
+if not os.path.isfile(os.path.join(os.getcwd(),output_folder_name,'stream/generate.txt')):
+    with open(os.path.join(os.getcwd(),output_folder_name,'stream/generate.txt'), 'w') as f:
+        f.write('!generate stablediffusion v1.4')
+
+# check if user.txt exists, if not create it
+if not os.path.isfile(os.path.join(os.getcwd(),output_folder_name,'stream/user.txt')):
+    with open(os.path.join(os.getcwd(),output_folder_name,'stream/user.txt'), 'w') as f:
+        f.write('')
+
+# # check if prompt.txt exists, if not create it
+# if not os.path.isfile(os.path.join(os.getcwd(),output_folder_name,'stream/prompt.txt')):
+#     with open(os.path.join(os.getcwd(),output_folder_name,'stream/prompt.txt'), 'w') as f:
+#         f.write('')
 
 from selenium_interface import Interfacer
 Webui_Interface = Interfacer(webui_url)
@@ -278,23 +315,29 @@ def main():
                 active_command = next_command
                 commands_left_in_batch = active_command[1]['n_imgs']
                 print(f'running command {active_command[0].__name__}, with args {active_command[1]}, {commands_left_in_batch} images left in batch')
+            else:
+                update_generate_text('!generate stablediffusion v1.4') # should make sure this isnt repeatedly called if it's already set to this
         else:
             images, params = check_outputs(Webui_Interface, active_command) # the check to prevent grabbing images before generation is done isnt working well
             if len(images) > 0: 
 
                 print(f'!{active_command[0].__name__} command is done..')
+                # update_generate_text(f'approving image '+str((active_command[1]['n_imgs'] - commands_left_in_batch) + 1)+'/'+str(active_command[1]['n_imgs']))
                 images = process_images(images)
-                for i in range(len(images)):
-                    output_list.append([images[i], params[i]])
-                if not params:
-                    print('warning: no params returned from command')
 
                 full_params = []
                 for i in range(len(params)):
                     f_params = active_command[1].copy()
                     f_params.update(params[i])
                     full_params.append(f_params)
+
+                # shouldnt this be a for loop over images in case of batch? why are we even trying to leave it open for batched image generation, would take so much to rewrite even now
                 update_image(images, full_params)
+
+                for i in range(len(images)):
+                    output_list.append([images[i], full_params[i]])
+                if not params:
+                    print('warning: no params returned from command')
 
                 commands_left_in_batch -= 1
 
@@ -314,11 +357,15 @@ def main():
                     active_command = None
                     print('done')
                 else:
-                    print(f'running next command: !{active_command[0].__name__} \nwith args: {active_command[1]} \n {commands_left_in_batch} images left in batch')
+                    print(f'running next command: !{active_command[0].__name__} \nwith args: {active_command[1]}')
+                    print(f'{commands_left_in_batch} images left in batch, {len(command_queue)-1} remaining commands left in queue') 
                     active_command[0](Webui_Interface, active_command[1])
-
-
-            # might need differeing logic for how to communicate with interface for grabbing data
+            else:
+                image_n = (active_command[1]['n_imgs'] - commands_left_in_batch) + 1
+                u = f'generating image '+str((active_command[1]['n_imgs'] - commands_left_in_batch) + 1)+'/'+str(active_command[1]['n_imgs'])
+                if len(command_queue) > 1:
+                    u += f', queue={len(command_queue)-1}'
+                update_generate_text(u)
 
 
 if __name__ == "__main__":
