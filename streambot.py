@@ -59,6 +59,21 @@ with open(os.path.join(os.getcwd(), 'config.json')) as f:
     default_args = config['default_args']
     webui_url = config['webui_url']
 
+def reload_config():
+    global server, port, nickname, token, channel, output_folder_name, default_args, webui_url
+    with open(os.path.join(os.getcwd(), 'config.json')) as f:
+        config = json.load(f)
+
+    server = config['server']
+    port = config['port']
+    nickname = config['nickname']
+    token = config['token']
+    channel = config['channel']
+    output_folder_name = config['output_folder_name']
+    default_args = config['default_args']
+    webui_url = config['webui_url']
+
+    
 
 # handles splitting complex additional arguments in command request
 def parse_arguments(copied_string):
@@ -130,6 +145,10 @@ def command_lookup(msg, usr):
             out_msg = f"prompt: {prompt}"
             print(out_msg)
             send_message(out_msg)
+
+        elif cfc(msg, 'reconfig'):
+            reload_config()
+            print('reloaded config')
 
         else:
             print('command not found')
@@ -261,6 +280,9 @@ def update_image(images, params, override=None):  # should rewrite this to be tw
         img = image_grid(checked_images, grid_size, grid_size)
         par = ('gridflag' + '||||'.join([json.dumps(x) for x in checked_params])).encode('utf-8') # don't know if this will work but it's worth a shot
         output_list.append([images, checked_params]) # if its a grid we want to add it to the output list so that we can access it later
+
+        image_grid(checked_images, grid_size, grid_size).save(os.path.join(os.getcwd(), output_folder_name, 'stream_unf.jpg'), exif=par)
+        os.startfile(os.path.join(os.getcwd(), output_folder_name, 'stream_unf.jpg'))
 
     # find the exif tag for user comment and add params to it
     exif = img.getexif() # should use ExifTags to search for UserComments so its clearer
