@@ -141,7 +141,7 @@ def check_outputs(webui, command):
 # depending on length of list create image grid of appropriate size, and check if images are safe
 # then save to disk with metadata exif comment tag
 # images and params can both independantly be lists or single items, would be easier if we could assume that single items are generation requests, and lists are for grids
-def update_image(images, params, override=None):  # honestly this function is a mess and should be cleaned up
+def update_image(images, params, override=None):  # should rewrite this to be two different functions, one for single images, and one for grids
     global active_image
 
     if type(images) is not list: # janky
@@ -158,24 +158,26 @@ def update_image(images, params, override=None):  # honestly this function is a 
         if 'is_safe' in params[i].keys():
             if override is None: override = params[i]['is_safe']
             else: override = False
-        if override:
+
+        if override: # should add if override is None, and if False then just blur image here instead of sending to safety checker
             checked_image = images[i]
             is_safe = True
         else:
-            new_checked_image, is_safe = check_safety(images[i])
-            if type(new_checked_image) is list: # sanity check
-                if len(new_checked_image) == 1:
-                    new_checked_image = new_checked_image[0]
-                    is_safe = is_safe[0]
+            checked_image, is_not_safe = check_safety(images[i])
+            if type(checked_image) is list: # sanity check
+                if len(checked_image) == 1:
+                    checked_image = checked_image[0]
+                    is_safe = not is_not_safe[0]
         cparams = params[i].copy()
         cparams['is_safe'] = is_safe
-        checked_images.append(new_checked_image)
+        checked_images.append(checked_image)
         checked_params.append(cparams)
     active_image = [images, checked_params]
 
     if len(checked_images) == 1:
         img = checked_images[0]
         par = json.dumps(checked_params[0]).encode('utf-8')
+        output_list.append([images[0], checked_params[0]])
     else:
         grid_size = len(checked_images) // 2
         if grid_size ** 2 != len(checked_images):
@@ -321,7 +323,7 @@ def main():
             images, params = check_outputs(Webui_Interface, active_command) # the check to prevent grabbing images before generation is done isnt working well
             if len(images) > 0: 
 
-                print(f'!{active_command[0].__name__} command is done..')
+                print(f'!{active_command[0].__name__} command is done..', end='')
                 # update_generate_text(f'approving image '+str((active_command[1]['n_imgs'] - commands_left_in_batch) + 1)+'/'+str(active_command[1]['n_imgs']))
                 images = process_images(images)
 
@@ -331,13 +333,7 @@ def main():
                     f_params.update(params[i])
                     full_params.append(f_params)
 
-                # shouldnt this be a for loop over images in case of batch? why are we even trying to leave it open for batched image generation, would take so much to rewrite even now
                 update_image(images, full_params)
-
-                for i in range(len(images)):
-                    output_list.append([images[i], full_params[i]])
-                if not params:
-                    print('warning: no params returned from command')
 
                 commands_left_in_batch -= 1
 
@@ -357,14 +353,14 @@ def main():
                     active_command = None
                     print('done')
                 else:
-                    print(f'running next command: !{active_command[0].__name__} \nwith args: {active_command[1]}')
-                    print(f'{commands_left_in_batch} images left in batch, {len(command_queue)-1} remaining commands left in queue') 
+                    # print(f'running next command: !{active_command[0].__name__} \nwith args: {active_command[1]}')
+                    print(f'{commands_left_in_batch} images left in batch, {len(command_queue)} remaining commands left in queue') 
                     active_command[0](Webui_Interface, active_command[1])
             else:
                 image_n = (active_command[1]['n_imgs'] - commands_left_in_batch) + 1
                 u = f'generating image '+str((active_command[1]['n_imgs'] - commands_left_in_batch) + 1)+'/'+str(active_command[1]['n_imgs'])
-                if len(command_queue) > 1:
-                    u += f', queue={len(command_queue)-1}'
+                if len(command_queue) > 0:
+                    u += f', queued: {len(command_queue)}'
                 update_generate_text(u)
 
 
