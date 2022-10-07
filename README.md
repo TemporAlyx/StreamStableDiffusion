@@ -36,6 +36,7 @@ with a little luck that should be it
 - add a forward and backward command that lets scrolling through previous grid images, select from grid, maybe even slideshow?
 - create a system that handles downloading required libraries and programs, so as to make installing a much less difficult process, and a single run script
 - create and integrate an optional discord bot that allows posting all stream generations to a designated discord channel, and post links to chat, so users can download their explorations of the latent space
+- redo selenium backend to work with the streamlit version, and (ideally) swap it out for whatever websockets/rest endpoint system that the ui uses instead
 
 
 A massive shoutout to the open source communities that are making the future of AI open to everyone.
