@@ -1,34 +1,42 @@
 # StreamStableDiffusionNotebook
-A simple ipython notebook to enable users in a twitch chat to generate images on stream.
-
-Currently overhauling this to integrate/piggyback off of a webui stablediffusion, so that this repo can more focus on the basic functionality of not exploding twitch or obs randomly
-check out the webui here: https://github.com/sd-webui/stable-diffusion-webui
+Simple Twitch bot for StableDiffusion !generate chat commands, facilitated by interfacing with [stable-diffusion-webui](https://github.com/sd-webui/stable-diffusion-webui) via selenium
 
 # Functionality
 
-Generated images are saved to an overwritten stream.jpg file that obs can watch for, as well as a text file to output who requested it, and a text file for the prompt
+Generated images are saved to an overwritten stream.jpg file that obs can watch for, as well as a text file to output the prompt and who requested, and a text file for outputing loading messages
+
 Utilizes StableDiffusion's Safety filter to (ideally) prevent any nsfw prompts making it to stream
 
-Can connect to a twitch channel chat to search for commands:
-!generate {prompt} # generates an image based off of the given prompt
-!clear             # wipes the current image
-!approve           # only the account used to connect the bot can use this command, depending on nsfw settings will 'approve' an image or grid of images if they were misclassified
-!terminate         # only the account used to connect the bot can use this command, simple command stops the bot from running
-!regenerate        # reuses the previous prompt and generates a new image/grid of images
+built in queuing system allows for multiple requests to be stored and ran sequentually
 
-# install process: (still to be tested with a clean install)
-Unfortunately getting this up and running will take a bit of techincal knowhow
-Requires a python (3.9 or above) install, along with a cuda enabled pytorch, as well as cuda itself (unfortunately will only work with cuda gpu).
-Currently is using a python notebook and so requires jupyter, but could probably be converted into a simple .py file.
+
+Can connect to a twitch channel chat to search for commands:
+- !generate {prompt} # generates an image based off of the given prompt
+- !clear             # wipes the current image and text
+- !approve           # only the account used to connect the bot can use this command, depending on nsfw settings will 'approve' an image if they were misclassified
+- !params            # outputs parameters used to create displayed image to chat
+- !seed, !prompt     # outputs seed or prompt for displayed image to chat
+
+# install process: 
+This repo relies on https://github.com/sd-webui/stable-diffusion-webui
+
+once the webui (gradio version for now) is up and running, download this repo and run streambot.py
+
+there may be some dependancies not installed by the webui, these can be obtained easily via pip, I plan on setting up a simple .bat/.sh file to make this easier
+
+after running streambot.py once, it will create a config.json, where you can fill in your twitch api info for the bot, as well as the link to the webui if it is not running on localhost
+
+now running streambot.py again will startup the whole script, and you should see in the terminal window it connecting to twtich
+
+in the streamable_outputs/stream folder, there is a stream.jpg, user.txt, and generate.txt, which can be pointed to from obs to display as sources for your stream
+
+with a little luck that should be it
 
 # To Do:
-add proper system that saves generation details in image metadata
-add a forward and backward command that lets scrolling through previous images, with optional slideshow
-create a system that handles downloading required libraries and programs, so as to make installing a much less difficult process
-exhaustively test safety filter settings and present data to give people an idea of how safe (and not safe) it is
-create gui? would be nice to have sliders and buttons to handle tuning settings and starting/restarting the bot, would also make it more accessible
+- add a forward and backward command that lets scrolling through previous grid images, select from grid, maybe even slideshow?
+- create a system that handles downloading required libraries and programs, so as to make installing a much less difficult process, and a single run script
+- create and integrate an optional discord bot that allows posting all stream generations to a designated discord channel, and post links to chat, so users can download their explorations of the latent space
 
 
-A Massive thank you and shoutout to the open source communities that made StableDiffusion possible.
-Code is based on examples provided here https://huggingface.co/CompVis/stable-diffusion-v1-4
-as well as example code from https://github.com/LearnDataSci/articles/tree/master/How%20to%20Stream%20Text%20Data%20from%20Twitch%20with%20Sockets%20in%20Python
+A massive shoutout to the open source communities that are making the future of AI open to everyone.
+Feel free to modify or reuse this code, as long as it eventually ends up as publicly accessible code for anyone to use/learn from.
