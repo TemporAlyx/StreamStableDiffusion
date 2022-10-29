@@ -24,6 +24,7 @@ default_config = {
     "token": "oauth:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
     "channel": "#put_the_channel_name_here",
     "webui_url": "http://localhost:7860",
+    "webui_location": "C:\\Users\\XXXX\\stable-diffusion-webui",
     "output_folder_name": "streamable_output",
     "default_args": {
         "prompt": "",
@@ -58,6 +59,7 @@ with open(os.path.join(os.getcwd(), 'config.json')) as f:
     output_folder_name = config['output_folder_name']
     default_args = config['default_args']
     webui_url = config['webui_url']
+    webui_location = config['webui_location']
 
 def reload_config():
     global server, port, nickname, token, channel, output_folder_name, default_args, webui_url
@@ -72,6 +74,7 @@ def reload_config():
     output_folder_name = config['output_folder_name']
     default_args = config['default_args']
     webui_url = config['webui_url']
+    webui_location = config['webui_location']
 
     
 
@@ -111,12 +114,10 @@ def command_lookup(msg, usr):
             print('added generate command to queue')
             
         elif cfc(msg, 'clear', 'c') and usr == nickname:
-            clear()
-            print('cleared image')
+            clear(); print('cleared image')
             
         elif cfc(msg, 'approve', 'a') and usr == nickname:
-            approve()
-            print('approved image')
+            approve(); print('approved image')
 
         elif cfc(msg, 'params'):
             if type(active_image[1]) is list:
@@ -281,7 +282,7 @@ def update_image(images, params, override=None):  # should rewrite this to be tw
         par = ('gridflag' + '||||'.join([json.dumps(x) for x in checked_params])).encode('utf-8') # don't know if this will work but it's worth a shot
         output_list.append([images, checked_params]) # if its a grid we want to add it to the output list so that we can access it later
 
-        image_grid(checked_images, grid_size, grid_size).save(os.path.join(os.getcwd(), output_folder_name, 'stream_unf.jpg'), exif=par)
+        image_grid(images, grid_size, grid_size).save(os.path.join(os.getcwd(), output_folder_name, 'stream_unf.jpg'), exif=par)
         os.startfile(os.path.join(os.getcwd(), output_folder_name, 'stream_unf.jpg'))
 
     # find the exif tag for user comment and add params to it
@@ -351,8 +352,9 @@ if not os.path.isfile(os.path.join(os.getcwd(),output_folder_name,'stream/user.t
 #     with open(os.path.join(os.getcwd(),output_folder_name,'stream/prompt.txt'), 'w') as f:
 #         f.write('')
 
-from selenium_interface import Interfacer
-Webui_Interface = Interfacer(webui_url)
+# from selenium_interface import Interfacer
+from websocket_interface import Interfacer
+Webui_Interface = Interfacer(webui_url, webui_loc=webui_location)
 sock = None #aught to just rewrite this all to be a class
     
 def create_socket():
@@ -424,7 +426,10 @@ def main():
 
                 print(f'!{active_command[0].__name__} command is done..', end='')
                 # update_generate_text(f'approving image '+str((active_command[1]['n_imgs'] - commands_left_in_batch) + 1)+'/'+str(active_command[1]['n_imgs']))
-                images = process_images(images)
+
+                # check whether images are PIL Images or base64 strings
+                if isinstance(images[0], str):
+                    images = process_images(images)
 
                 full_params = []
                 for i in range(len(params)):
