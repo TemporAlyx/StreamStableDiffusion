@@ -2,8 +2,6 @@
 # however a more 'proper route would handle authorization itself'
 # may have to update token every few months
 
-# should probably change this to load from a txt config
-# should also probably stop testing in production buuuuut *shrug*
 import base64
 import io
 import json
@@ -16,6 +14,8 @@ from emoji import demojize
 from PIL import Image, ExifTags
 from safetyfilter import check_safety
 
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 default_config = {
     "server": "irc.chat.twitch.tv",
