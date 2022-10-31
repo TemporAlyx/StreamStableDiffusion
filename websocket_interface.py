@@ -8,11 +8,15 @@ class Interfacer:
 
     # need to handle cmd prompts
     def start_webui(self):
-        print('starting webui...')
-        cwd = os.getcwd()
+        print('starting webui... may take ~20 seconds')
+        
+        # get directory of this file
+        cwd = os.path.dirname(os.path.realpath(__file__))
         os.chdir(self.webui_loc)
         os.startfile('webui-user.bat')
-        print('webui is starting, wait until it is ready')
+        time.sleep(15.0)
+        print('wait until webui is loaded it is ready before generating') 
+        time.sleep(5.0)
         os.chdir(cwd)
     
     def __init__(self, url, webui_loc):
@@ -104,8 +108,10 @@ class Interfacer:
 
         try:
             r = requests.post(self.url + '/api/predict/', json=new_request, timeout=0.05)
+            requested = True
         except requests.exceptions.ReadTimeout:
             pass
+
         # print(r.text, r.status_code, r.reason)
         
     def get_outputs(self, args=None):
@@ -113,10 +119,11 @@ class Interfacer:
         # get most recent image from the output_location
         most_recent_img = os.listdir(self.output_location)[-1]
 
-
         if most_recent_img != self.last_output:
             self.last_output = most_recent_img
 
+            # maybe wait a tiny bit to make sure the image is done saving
+            time.sleep(0.05)
             img = Image.open(os.path.join(self.output_location, most_recent_img))
 
             params = self.current_params

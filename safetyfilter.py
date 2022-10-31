@@ -96,7 +96,7 @@ def check_safety(x_image):
     global safety_feature_extractor, safety_checker
     if x_image is not list:
         x_image = [x_image]
-    x_image = [np.array(x) for x in x_image]
+    x_image = [np.asarray(x) for x in x_image]
     if safety_feature_extractor is None:
         safety_feature_extractor = AutoFeatureExtractor.from_pretrained(safety_model_id)
         safety_checker = OverrideStableDiffusionSafetyChecker.from_pretrained(safety_model_id)
@@ -104,7 +104,7 @@ def check_safety(x_image):
     x_checked_image, has_nsfw_concept = safety_checker(images=x_image, clip_input=safety_checker_input.pixel_values)
     for i in range(len(has_nsfw_concept)):
         if has_nsfw_concept[i]: # use a guassian blur to blur out potentially nsfw content in image
-            x_checked_image[i] = numpy_to_pil(x_image[i])[0].filter(ImageFilter.GaussianBlur(radius=28))
+            x_checked_image[i] = numpy_to_pil(x_image[i])[0].filter(ImageFilter.GaussianBlur(radius=27))
             print('potential NSFW image detected, saving blurred image to stream instead')
         else: 
             x_checked_image[i] = numpy_to_pil(x_image[i])[0]

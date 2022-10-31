@@ -342,7 +342,7 @@ else:
 # check if generate.txt exists, if not create it
 if not os.path.isfile(os.path.join(os.getcwd(),output_folder_name,'stream/generate.txt')):
     with open(os.path.join(os.getcwd(),output_folder_name,'stream/generate.txt'), 'w') as f:
-        f.write('!generate stablediffusion v1.4')
+        f.write('!generate stablediffusion v1.5')
 
 # check if user.txt exists, if not create it
 if not os.path.isfile(os.path.join(os.getcwd(),output_folder_name,'stream/user.txt')):
@@ -421,7 +421,7 @@ def main():
                 commands_left_in_batch = active_command[1]['n_imgs']
                 print(f'running command {active_command[0].__name__}, with args {active_command[1]}, {commands_left_in_batch} images left in batch')
             else:
-                update_generate_text('!generate stablediffusion v1.4') # should make sure this isnt repeatedly called if it's already set to this
+                update_generate_text('!generate stablediffusion v1.5') # should make sure this isnt repeatedly called if it's already set to this
         else:
             images, params = check_outputs(Webui_Interface, active_command) # the check to prevent grabbing images before generation is done isnt working well
             if len(images) > 0: 
@@ -430,8 +430,8 @@ def main():
                 # update_generate_text(f'approving image '+str((active_command[1]['n_imgs'] - commands_left_in_batch) + 1)+'/'+str(active_command[1]['n_imgs']))
 
                 # check whether images are PIL Images or base64 strings
-                if isinstance(images[0], str):
-                    images = process_images(images)
+                # if isinstance(images[0], str):
+                #     images = process_images(images)
 
                 full_params = []
                 for i in range(len(params)):
