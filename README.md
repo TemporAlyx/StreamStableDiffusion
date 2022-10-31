@@ -1,5 +1,5 @@
 # StreamStableDiffusion
-Simple Twitch bot for StableDiffusion !generate chat commands, facilitated by interfacing with [stable-diffusion-webui](https://github.com/sd-webui/stable-diffusion-webui) via selenium
+Simple Twitch bot for StableDiffusion !generate chat commands, facilitated by interfacing with [stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui) via websockets
 
 # Functionality
 
@@ -18,25 +18,24 @@ Can connect to a twitch channel chat to search for commands:
 - !seed, !prompt     # outputs seed or prompt for displayed image to chat
 
 # install process: 
-This repo relies on https://github.com/sd-webui/stable-diffusion-webui
+First install the webui from https://github.com/AUTOMATIC1111/stable-diffusion-webui
+Then download this repo and run streambot.py
 
-once the webui (gradio version for now) is up and running, download this repo and run streambot.py
+there may be some dependancies not installed by the webui, these can be obtained via pip, I plan on setting up a simple .bat/.sh file to make this easier in the future
 
-there may be some dependancies not installed by the webui, these can be obtained easily via pip, I plan on setting up a simple .bat/.sh file to make this easier
+after running streambot.py once, it will create a config.json, where you can fill in your twitch api info for the bot, as well as the url for the webui, and the webui file location (the install location of the webui)
 
-after running streambot.py once, it will create a config.json, where you can fill in your twitch api info for the bot, as well as the link to the webui if it is not running on localhost
-
-now running streambot.py again will startup the whole script, and you should see in the terminal window it connecting to twtich
+now running streambot.py again will startup the whole script, automatically startup an instance of the webui, and you should see in the terminal window it connecting to twitch
 
 in the streamable_outputs/stream folder, there is a stream.jpg, user.txt, and generate.txt, which can be pointed to from obs to display as sources for your stream
 
 with a little luck that should be it
 
 # To Do:
-- add a forward and backward command that lets scrolling through previous grid images, select from grid, maybe even slideshow?
 - create a system that handles downloading required libraries and programs, so as to make installing a much less difficult process, and a single run script
 - create and integrate an optional discord bot that allows posting all stream generations to a designated discord channel, and post links to chat, so users can download their explorations of the latent space
-- redo selenium backend to work with the streamlit version, and (ideally) swap it out for whatever websockets/rest endpoint system that the ui uses instead
+- add a forward and backward command that lets scrolling through previous grid images, select from grid, maybe even slideshow?
+- clean up the presentation of this repo, with images detailing how it can look in action
 
 
 A massive shoutout to the open source communities that are making the future of AI open to everyone.
