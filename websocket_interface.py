@@ -77,8 +77,9 @@ class Interfacer:
 
         self.output_location = os.path.join(self.webui_loc, 'outputs', 'txt2img-images')
 
-        self.last_output = None
-        
+        self.last_output = os.listdir(self.output_location)[-1]
+        self.current_params = {}
+
         self.start_webui()
         
 
@@ -107,7 +108,7 @@ class Interfacer:
             pass
         # print(r.text, r.status_code, r.reason)
         
-    def get_outputs(self, args):
+    def get_outputs(self, args=None):
         # check if done generating
         # get most recent image from the output_location
         most_recent_img = os.listdir(self.output_location)[-1]
