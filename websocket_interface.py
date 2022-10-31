@@ -12,7 +12,7 @@ class Interfacer:
         cwd = os.getcwd()
         os.chdir(self.webui_loc)
         os.startfile('webui-user.bat')
-        time.sleep(15)
+        print('webui is starting, wait until it is ready')
         os.chdir(cwd)
     
     def __init__(self, url, webui_loc):

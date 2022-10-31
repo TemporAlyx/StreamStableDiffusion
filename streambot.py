@@ -211,12 +211,14 @@ def load_image(path):
             params = params.split('||||')
             params = [json.loads(x) for x in params]
             # if image is a grid we also want to split the grid up into individual images and return them
-            imgs = []
+            
             n_imgs = params[0]['n_imgs']
             grid_size = int(np.ceil(np.sqrt(n_imgs)))
-            
-            M = int(params[0]['height'])
-            N = int(params[0]['width'])
+
+            # split image into grid based on number of images
+            # set M and N according the size of the image divided by the grid size
+            M, N = img.size[0] // grid_size, img.size[1] // grid_size
+
             im = np.array(img) # https://stackoverflow.com/questions/5953373/how-to-split-image-into-multiple-pieces-in-python
             tiles = [im[x:x+M,y:y+N] for x in range(0,im.shape[0],M) for y in range(0,im.shape[1],N)]  # unsure if this will untule the grid correctly
             img = [Image.fromarray(x) for x in tiles]
