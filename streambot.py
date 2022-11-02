@@ -24,11 +24,13 @@ default_config = {
     "token": "oauth:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
     "channel": "#put_the_channel_name_here",
     "webui_url": "http://localhost:7860",
-    "webui_location": "C:\\Users\\XXXX\\stable-diffusion-webui",
+    "webui_os": "windows",
     "output_folder_name": "streamable_output",
     "default_args": {
         "prompt": "",
-        "n_imgs": 4
+        "n_imgs": 4,
+        "sampler": "Euler a",
+        "steps": 20
         }
     }
 
@@ -59,7 +61,7 @@ with open(os.path.join(os.getcwd(), 'config.json')) as f:
     output_folder_name = config['output_folder_name']
     default_args = config['default_args']
     webui_url = config['webui_url']
-    webui_location = config['webui_location']
+    webui_os = config['webui_os']
 
 def reload_config():
     global server, port, nickname, token, channel, output_folder_name, default_args, webui_url
@@ -74,7 +76,7 @@ def reload_config():
     output_folder_name = config['output_folder_name']
     default_args = config['default_args']
     webui_url = config['webui_url']
-    webui_location = config['webui_location']
+    webui_os = config['webui_os']
 
     
 
@@ -354,9 +356,8 @@ if not os.path.isfile(os.path.join(os.getcwd(),output_folder_name,'stream/user.t
 #     with open(os.path.join(os.getcwd(),output_folder_name,'stream/prompt.txt'), 'w') as f:
 #         f.write('')
 
-# from selenium_interface import Interfacer
 from websocket_interface import Interfacer
-Webui_Interface = Interfacer(webui_url, webui_loc=webui_location)
+Webui_Interface = Interfacer(webui_url, webui_os=webui_os)
 sock = None #aught to just rewrite this all to be a class
     
 def create_socket():
@@ -423,7 +424,7 @@ def main():
             else:
                 update_generate_text('!generate stablediffusion v1.5') # should make sure this isnt repeatedly called if it's already set to this
         else:
-            images, params = check_outputs(Webui_Interface, active_command) # the check to prevent grabbing images before generation is done isnt working well
+            images, params = check_outputs(Webui_Interface, active_command)
             if len(images) > 0: 
 
                 print(f'!{active_command[0].__name__} command is done..', end='')

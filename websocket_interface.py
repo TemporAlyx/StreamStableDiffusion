@@ -1,72 +1,42 @@
+import base64
+import io
 import re
 import os, time
+from requests_futures.sessions import FuturesSession
 import requests
 from PIL import Image
 
 
 class Interfacer:
-
-    # need to handle cmd prompts
-    def start_webui(self):
-        print('starting webui... may take ~20 seconds')
-        
-        # get directory of this file
-        cwd = os.path.dirname(os.path.realpath(__file__))
-        os.chdir(self.webui_loc)
-        os.startfile('webui-user.bat')
-        time.sleep(15.0)
-        print('wait until webui is loaded it is ready before generating') 
-        time.sleep(5.0)
-        os.chdir(cwd)
     
-    def __init__(self, url, webui_loc):
-        self.webui_loc = webui_loc
+    def __init__(self, url, webui_os='windows'):
         self.url = url
+        self.webui_os = webui_os
+        self.session = FuturesSession(max_workers=1)
 
         self.default_request_data = {
             "fn_index": 13,
             "data": [
                 "",        # prompt
                 "",        # negative prompt
-                "None",
-                "None",
+                "None", "None",
                 20,        # steps
                 "Euler a", # sampler
                 False,     # restore faces
                 False,
                 1,         # batch count ?
                 1,         # batch size ? 
-                7,         # cfg scale
-                -1,
-                -1,
-                0,
-                0,
-                0,
-                False,
+                7.0,         # cfg scale
+                -1, -1, 0, 0, 0, False,
                 512,       # height
                 512,       # width
                 False,     # high res fix?
                 0.7,       # high res denoise strength
-                512,
-                512,
-                "None",
-                False,
-                False,
-                None,
-                "",
-                "Seed",
-                "",
-                "Nothing",
-                "",
-                True,
-                False,
-                False,
-                None,
-                "",
-                ""
-            ],
-            "session_hash": "fjrjpcj8z1"
+                512, 512, "None", False, False, None, "", "Seed", "", "Nothing", "", True, False, False, None, "", ""
+            ]
         }
+        if self.webui_os == 'linux':
+            self.default_request_data['fn_index'] = 100
 
         self.arg_mapping = {
             'prompt': 0,
@@ -79,13 +49,8 @@ class Interfacer:
             'sampler': 5,
         }
 
-        self.output_location = os.path.join(self.webui_loc, 'outputs', 'txt2img-images')
-
-        self.last_output = os.listdir(self.output_location)[-1]
+        self.current_request = None
         self.current_params = {}
-
-        self.start_webui()
-        
 
 
     def generate(self, args):
@@ -105,31 +70,32 @@ class Interfacer:
         new_request['data'] = new_request_list
 
         self.current_params = args
-
-        try:
-            r = requests.post(self.url + '/api/predict/', json=new_request, timeout=0.05)
-            requested = True
-        except requests.exceptions.ReadTimeout:
-            pass
-
-        # print(r.text, r.status_code, r.reason)
+        self.current_request = self.session.post(self.url + '/api/predict/', json=new_request)
         
+
     def get_outputs(self, args=None):
-        # check if done generating
-        # get most recent image from the output_location
-        most_recent_img = os.listdir(self.output_location)[-1]
+        # check if current request is done
+        if self.current_request is not None:
+            if self.current_request.done():
+                # get the response
+                resp = self.current_request.result()
 
-        if most_recent_img != self.last_output:
-            self.last_output = most_recent_img
+                if self.webui_os == 'windows':
+                    b64img = resp.json()['data'][0][0][22:]
+                    imagebytes = base64.b64decode(b64img)
+                    img = Image.open(io.BytesIO(imagebytes))
 
-            # maybe wait a tiny bit to make sure the image is done saving
-            time.sleep(0.05)
-            img = Image.open(os.path.join(self.output_location, most_recent_img))
+                if self.webui_os == 'linux':
+                    imgloc = resp.json()['data'][0][0]['name']
+                    img = requests.get(self.url + '/file=' + imgloc)
+                    img = Image.open(io.BytesIO(img.content))
 
-            params = self.current_params
+                self.current_request = None
+                params = self.current_params
 
-            return [img], [params]
+                return [img], [params]
         return [], {}
+
 
     # takes a string of params, with the format:
     # example: 
@@ -147,17 +113,10 @@ class Interfacer:
         params['prompt'] = prompt
         return params
 
-
 # def get_settings():
 #     pass
 
 # def set_settings():
-#     pass
-
-# def get_images():
-#     pass
-
-# def set_tab():
 #     pass
 
 # def variation():
