@@ -13,28 +13,6 @@ class Interfacer:
         self.url = url
         self.session = FuturesSession(max_workers=1)
 
-        # self.default_request_data = {
-        #     "fn_index": 13,
-        #     "data": [
-        #         "",        # prompt
-        #         "",        # negative prompt
-        #         "None", "None",
-        #         20,        # steps
-        #         "Euler a", # sampler
-        #         False,     # restore faces
-        #         False,
-        #         1,         # batch count ?
-        #         1,         # batch size ? 
-        #         7.0,         # cfg scale
-        #         -1, -1, 0, 0, 0, False,
-        #         768,       # height
-        #         768,       # width
-        #         False,     # high res fix?
-        #         0.7,       # high res denoise strength
-        #         0, 0, "None", False, False, False, False, "", "Seed", "", "Nothing", "", True, False, False, None, "", ""
-        #     ]
-        # }
-
         self.default_request_data = {
             'prompt': "",
             'negative_prompt': "",
@@ -44,17 +22,6 @@ class Interfacer:
             'height': 512,
             'width': 512,
         }
-
-        # self.arg_mapping = {
-        #     'prompt': 0,
-        #     'negative_prompt': 1,
-        #     'seed': 11,
-        #     'steps': 4,
-        #     'height': 17,
-        #     'width': 18,
-        #     'cfg_scale': 10,
-        #     'sampler': 5,
-        # }
 
         self.current_request = None
         self.current_params = {}
@@ -70,9 +37,6 @@ class Interfacer:
             args['prompt'], args['negative_prompt'] = args['prompt'].split('###')
             args['negative_prompt'] = args['negative_prompt'].strip()
 
-        # for arg in args:
-        #     if arg in self.arg_mapping:
-        #         new_request_list[self.arg_mapping[arg]] = args[arg]
         new_request = self.default_request_data.copy()
         new_request.update(args)
 
