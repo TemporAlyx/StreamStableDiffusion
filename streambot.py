@@ -1,5 +1,5 @@
 # simple way to get oauth token is via https://twitchapps.com/tmi/ 
-# however a more 'proper route would handle authorization itself'
+# however a 'proper route would handle authorization itself'
 # may have to update token every few months
 
 import base64
@@ -14,7 +14,7 @@ from emoji import demojize
 from PIL import Image, ExifTags
 from safetyfilter import check_safety
 
-
+# this is useful to make sure that wherever the script is run from, it can search its surrounding directory
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 default_config = {
@@ -24,7 +24,6 @@ default_config = {
     "token": "oauth:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
     "channel": "#put_the_channel_name_here",
     "webui_url": "http://localhost:7860",
-    "webui_os": "windows",
     "output_folder_name": "streamable_output",
     "default_args": {
         "prompt": "",
@@ -40,7 +39,7 @@ if not os.path.isfile(os.path.join(os.getcwd(), 'config.json')): # if no config 
         json.dump(default_config, f, indent=4)
     
     # exit program
-    print('config.json not found, default config created, please fill in the details and restart the program')
+    print('config.json not found, default config created, please fill in the details and restart the script')
     time.sleep(5)
     exit()
 
@@ -49,7 +48,7 @@ with open(os.path.join(os.getcwd(), 'config.json')) as f:
     config = json.load(f)
 
     if config == default_config:
-        print('config.json has not been configured, or is incorrectly configured, please fill in the details and restart the program')
+        print('config.json has not been configured, or is incorrectly configured, please fill in the details and restart the script')
         time.sleep(30)
         exit()
 
@@ -61,10 +60,10 @@ with open(os.path.join(os.getcwd(), 'config.json')) as f:
     output_folder_name = config['output_folder_name']
     default_args = config['default_args']
     webui_url = config['webui_url']
-    webui_os = config['webui_os']
+
 
 def reload_config():
-    global server, port, nickname, token, channel, output_folder_name, default_args, webui_url
+    global server, port, nickname, token, channel, output_folder_name, default_args, webui_url, webui_os
     with open(os.path.join(os.getcwd(), 'config.json')) as f:
         config = json.load(f)
 
@@ -76,9 +75,7 @@ def reload_config():
     output_folder_name = config['output_folder_name']
     default_args = config['default_args']
     webui_url = config['webui_url']
-    webui_os = config['webui_os']
 
-    
 
 # handles splitting complex additional arguments in command request
 def parse_arguments(copied_string):
@@ -151,7 +148,7 @@ def command_lookup(msg, usr):
 
         elif cfc(msg, 'reconfig'):
             reload_config()
-            print('reloaded config')
+            print('reloaded config, note, not all settings can take effect without restarting the script')
 
         else:
             print('command not found')
@@ -259,6 +256,7 @@ def update_image(images, params, override=None):  # should rewrite this to be tw
             else: 
                 override = False
 
+        is_safe = None
         if override: # should add if override is None, and if False then just blur image here instead of sending to safety checker
             checked_image = images[i]
             is_safe = True
@@ -357,7 +355,7 @@ if not os.path.isfile(os.path.join(os.getcwd(),output_folder_name,'stream/user.t
 #         f.write('')
 
 from websocket_interface import Interfacer
-Webui_Interface = Interfacer(webui_url, webui_os=webui_os)
+Webui_Interface = Interfacer(webui_url)
 sock = None #aught to just rewrite this all to be a class
     
 def create_socket():
@@ -443,6 +441,10 @@ def main():
                 update_image(images, full_params)
 
                 commands_left_in_batch -= 1
+
+                # if there are more commands in the queue, then reduce the number of images in batch so as to speed things up
+                if len(command_queue) > 0:
+                    commands_left_in_batch = 0
 
                 #  if thats the last image in the batch, create grid update image
                 if commands_left_in_batch == 0:

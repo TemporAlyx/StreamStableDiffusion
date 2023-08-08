@@ -9,45 +9,52 @@ from PIL import Image
 
 class Interfacer:
     
-    def __init__(self, url, webui_os='windows'):
+    def __init__(self, url):
         self.url = url
-        self.webui_os = webui_os
         self.session = FuturesSession(max_workers=1)
 
-        self.default_request_data = {
-            "fn_index": 13,
-            "data": [
-                "",        # prompt
-                "",        # negative prompt
-                "None", "None",
-                20,        # steps
-                "Euler a", # sampler
-                False,     # restore faces
-                False,
-                1,         # batch count ?
-                1,         # batch size ? 
-                7.0,         # cfg scale
-                -1, -1, 0, 0, 0, False,
-                512,       # height
-                512,       # width
-                False,     # high res fix?
-                0.7,       # high res denoise strength
-                512, 512, "None", False, False, None, "", "Seed", "", "Nothing", "", True, False, False, None, "", ""
-            ]
-        }
-        if self.webui_os == 'linux':
-            self.default_request_data['fn_index'] = 100
+        # self.default_request_data = {
+        #     "fn_index": 13,
+        #     "data": [
+        #         "",        # prompt
+        #         "",        # negative prompt
+        #         "None", "None",
+        #         20,        # steps
+        #         "Euler a", # sampler
+        #         False,     # restore faces
+        #         False,
+        #         1,         # batch count ?
+        #         1,         # batch size ? 
+        #         7.0,         # cfg scale
+        #         -1, -1, 0, 0, 0, False,
+        #         768,       # height
+        #         768,       # width
+        #         False,     # high res fix?
+        #         0.7,       # high res denoise strength
+        #         0, 0, "None", False, False, False, False, "", "Seed", "", "Nothing", "", True, False, False, None, "", ""
+        #     ]
+        # }
 
-        self.arg_mapping = {
-            'prompt': 0,
-            'negative_prompt': 1,
-            'seed': 11,
-            'steps': 4,
-            'height': 17,
-            'width': 18,
-            'cfg_scale': 10,
-            'sampler': 5,
+        self.default_request_data = {
+            'prompt': "",
+            'negative_prompt': "",
+            'cfg_scale': 7.0,
+            'sampler': "Euler a",
+            'steps': 28,
+            'height': 512,
+            'width': 512,
         }
+
+        # self.arg_mapping = {
+        #     'prompt': 0,
+        #     'negative_prompt': 1,
+        #     'seed': 11,
+        #     'steps': 4,
+        #     'height': 17,
+        #     'width': 18,
+        #     'cfg_scale': 10,
+        #     'sampler': 5,
+        # }
 
         self.current_request = None
         self.current_params = {}
@@ -56,21 +63,21 @@ class Interfacer:
     def generate(self, args):
         # submit a post request to the url
         
-        new_request_list = self.default_request_data['data'].copy()
+        # new_request_list = self.default_request_data.copy()
 
         # check for negative weight deliminator in prompt '###'
         if '###' in args['prompt']:
             args['prompt'], args['negative_prompt'] = args['prompt'].split('###')
             args['negative_prompt'] = args['negative_prompt'].strip()
 
-        for arg in args:
-            if arg in self.arg_mapping:
-                new_request_list[self.arg_mapping[arg]] = args[arg]
+        # for arg in args:
+        #     if arg in self.arg_mapping:
+        #         new_request_list[self.arg_mapping[arg]] = args[arg]
         new_request = self.default_request_data.copy()
-        new_request['data'] = new_request_list
+        new_request.update(args)
 
         self.current_params = args
-        self.current_request = self.session.post(self.url + '/api/predict/', json=new_request)
+        self.current_request = self.session.post(self.url + '/sdapi/v1/txt2img/', json=new_request)
         
 
     def get_outputs(self, args=None):
@@ -79,16 +86,11 @@ class Interfacer:
             if self.current_request.done():
                 # get the response
                 resp = self.current_request.result()
+                img = None
 
-                if self.webui_os == 'windows':
-                    b64img = resp.json()['data'][0][0][22:]
-                    imagebytes = base64.b64decode(b64img)
-                    img = Image.open(io.BytesIO(imagebytes))
-
-                if self.webui_os == 'linux':
-                    imgloc = resp.json()['data'][0][0]['name']
-                    img = requests.get(self.url + '/file=' + imgloc)
-                    img = Image.open(io.BytesIO(img.content))
+                b64img = resp.json()['images'][0]
+                imagebytes = base64.b64decode(b64img)
+                img = Image.open(io.BytesIO(imagebytes))
 
                 self.current_request = None
                 params = self.current_params
