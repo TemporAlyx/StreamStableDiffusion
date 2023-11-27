@@ -19,6 +19,9 @@ Can connect to a twitch channel chat to search for commands:
 
 # install process: 
 First install the webui from https://github.com/AUTOMATIC1111/stable-diffusion-webui
+
+NOTE: in the webui-user.bat file, --api needs to be added to the commandline args in order for this repo to work correctly.
+
 Then download this repo and run streambot.py
 
 there may be some dependancies not installed by the webui, these can be obtained via pip, I plan on setting up a simple .bat/.sh file to make this easier in the future
