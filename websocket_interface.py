@@ -1,7 +1,7 @@
 import base64
 import io
 import re
-import os, time
+import os, time, sys, traceback
 from requests_futures.sessions import FuturesSession
 import requests
 from PIL import Image
@@ -51,8 +51,20 @@ class Interfacer:
                 # get the response
                 resp = self.current_request.result()
                 img = None
+                b64img = None
 
-                b64img = resp.json()['images'][0]
+                # check if the response is valid, and if not throw an error prompting the user to check if '--api' flag is set
+                try:
+                    b64img = resp.json()['images'][0]
+                except:
+                    # print the base key error stack trace first
+                    traceback.print_exc()
+                    # then print the error message
+                    print("Error: Invalid response from webui. Check if the '--api' flag is set for COMMANDLINE_ARGS in webui-user.bat")
+                    # wait 5 seconds before exiting
+                    time.sleep(5)
+                    sys.exit(1)
+                
                 imagebytes = base64.b64decode(b64img)
                 img = Image.open(io.BytesIO(imagebytes))
 
