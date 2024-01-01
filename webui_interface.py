@@ -1,6 +1,5 @@
 import io
 import os
-import requests
 import base64
 from PIL import Image
 from requests_futures.sessions import FuturesSession

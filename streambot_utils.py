@@ -3,9 +3,7 @@ import socket
 import numpy as np
 import base64
 import io
-from PIL import Image, ExifTags
-
-
+from PIL import Image
 
 
 default_config = {

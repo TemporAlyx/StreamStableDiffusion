@@ -1,9 +1,7 @@
 import base64
 import io
-import re
-import os, time, sys, traceback
+import time, sys, traceback
 from requests_futures.sessions import FuturesSession
-import requests
 from PIL import Image
 
 
