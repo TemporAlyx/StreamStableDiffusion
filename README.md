@@ -22,9 +22,11 @@ First install the webui from https://github.com/AUTOMATIC1111/stable-diffusion-w
 
 NOTE: in the webui-user.bat file, --api needs to be added to the commandline args in order for this repo to work correctly.
 
-Then download this repo and run streambot.py
+Then download this repo
 
-there may be some dependancies not installed by the webui, these can be obtained via pip, I plan on setting up a simple .bat/.sh file to make this easier in the future
+install dependancies for this repo using pip and the included requirements.txt (ideally setup a venv)
+
+and run streambot.py
 
 after running streambot.py once, it will create a config.json, where you can fill in your twitch api info for the bot, as well as the url for the webui, and the webui file location (the install location of the webui)
 
@@ -35,11 +37,10 @@ in the streamable_outputs/stream folder, there is a stream.jpg, user.txt, and ge
 with a little luck that should be it
 
 # To Do:
-- create a system that handles downloading required libraries and programs, so as to make installing a much less difficult process, and a single run script
+- create a system that automatically sets up a venv and installs dependancies on first run
 - create and integrate an optional discord bot that allows posting all stream generations to a designated discord channel, and post links to chat, so users can download their explorations of the latent space
 - add a forward and backward command that lets scrolling through previous grid images, select from grid, maybe even slideshow?
 - clean up the presentation of this repo, with images detailing how it can look in action
-
 
 A massive shoutout to the open source communities that are making the future of AI open to everyone.
 Feel free to modify or reuse the code in this repository, as long as it eventually ends up as publicly accessible code for anyone to use/learn from.
