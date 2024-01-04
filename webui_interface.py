@@ -33,10 +33,10 @@ class API_Interface:
             "sampler_name": "string",
             "batch_size": 1,
             "n_iter": 1,
-            "steps": 50,
-            "cfg_scale": 7,
-            "width": 512,
-            "height": 512,
+            "steps": 5,
+            "cfg_scale": 3,
+            "width": 1024,
+            "height": 1024,
             "restore_faces": False,
             "tiling": False,
             "negative_prompt": "string",
@@ -48,7 +48,7 @@ class API_Interface:
             "override_settings": {},
             "override_settings_restore_afterwards": True,
             "script_args": [],
-            "sampler_index": "Euler",
+            "sampler_index": "DPM++ SDE Karras",
             "script_name": "string"
         }
 

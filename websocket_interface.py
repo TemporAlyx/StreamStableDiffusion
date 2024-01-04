@@ -14,11 +14,11 @@ class Interfacer:
         self.default_request_data = {
             'prompt': "",
             'negative_prompt': "",
-            'cfg_scale': 7.0,
-            'sampler': "Euler a",
-            'steps': 28,
-            'height': 512,
-            'width': 512,
+            'cfg_scale': 3.0,
+            'sampler': "DPM++ SDE Karras",
+            'steps': 5,
+            'height': 1024,
+            'width': 1024,
         }
 
         self.current_request = None

@@ -232,7 +232,7 @@ def main():
                 commands_left_in_batch = active_command[1]['n_imgs']
                 print(f'running command {active_command[0].__name__}, with args {active_command[1]}, {commands_left_in_batch} images left in batch')
             else:
-                update_generate_text('!generate stablediffusion v1.5', config) # should make sure this isnt repeatedly called if it's already set to this
+                update_generate_text('!generate', config) # should make sure this isnt repeatedly called if it's already set to this
         else:
             images, params = check_outputs(Webui_Interface, active_command)
             if len(images) > 0: 

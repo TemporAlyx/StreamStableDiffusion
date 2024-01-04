@@ -17,9 +17,10 @@ default_config = {
     "default_args": {
         "prompt": "",
         "n_imgs": 4,
-        "sampler": "Euler a",
-        "steps": 20
-        }
+        "cfg_scale": 3.0,
+        "sampler": "DPM++ SDE Karras",
+        "steps": 5,
+    }
     }
 
 def load_config():
@@ -117,7 +118,7 @@ def make_check_folders(config):
     # check if generate.txt exists, if not create it
     if not os.path.isfile(os.path.join(os.getcwd(),config['output_folder_name'],'stream/generate.txt')):
         with open(os.path.join(os.getcwd(),config['output_folder_name'],'stream/generate.txt'), 'w') as f:
-            f.write('!generate stablediffusion v1.5')
+            f.write('!generate')
 
     # check if user.txt exists, if not create it
     if not os.path.isfile(os.path.join(os.getcwd(),config['output_folder_name'],'stream/user.txt')):
