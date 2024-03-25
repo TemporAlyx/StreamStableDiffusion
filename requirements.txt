@@ -4,5 +4,5 @@ numpy==1.24.1
 Pillow==9.3.0
 Pillow==10.1.0
 requests_futures==1.0.1
-torch==2.0.1+cu118
+torch==2.0.1
 transformers==4.30.2
